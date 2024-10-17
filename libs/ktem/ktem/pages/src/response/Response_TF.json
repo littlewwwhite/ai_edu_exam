@@ -1,0 +1,29 @@
+{
+    "1": {
+        "question": "true or false question",
+        "options": {
+            "A": "True",
+            "B": "False"
+        },
+        "correct": "correct answer",
+        "explanation": "Detailed option explanations"
+    },
+    "2": {
+        "question": "true or false question",
+        "options": {
+            "A": "True",
+            "B": "False"
+        },
+        "correct": "correct answer",
+        "explanation": "Detailed option explanations"
+    },
+    "3": {
+        "question": "true or false question",
+        "options": {
+            "A": "True",
+            "B": "False"
+        },
+        "correct": "correct answer",
+        "explanation": "Detailed option explanations"
+    }
+}
