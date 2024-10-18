@@ -403,27 +403,28 @@ def get_session_history(session_id: str) -> InMemoryChatMessageHistory:
         store[session_id] = InMemoryChatMessageHistory()
     return store[session_id]
 
-def generate_response(user_input, information,model="深度求索", session_id="1"):
+def generate_response(history_list, information, session_id="1",model="深度求索"):
     prompt = ChatPromptTemplate.from_messages([
         ("system", sys_pro),
         MessagesPlaceholder(variable_name="history"),
         ("human", "{question}"),
     ])
-    model = os.environ.get('default_model')
+    # model = os.environ.get('default_model')
     llm, _ = get_llm(model)
     # Set up the language model and memory chain
     chain = prompt | llm
     chain_with_message = RunnableWithMessageHistory(chain, get_session_history, input_messages_key="question",
                                                          history_messages_key="history", )
     # 获取当前会话的历史记录
-    history = get_session_history(session_id)
+    # history = get_session_history(session_id)
 
     # 生成响应
-    response_message = chain_with_message.invoke(
-        {"question":user_input,"info": information},
-        config={"configurable": {"session_id": session_id}}
-    )
-    return response_message,history
+    history_list[-1][1] = ""
+    # 提取响应内容
+    for chunk in chain_with_message.stream({"question": history_list[-1][0], "info": information},
+                                                config={"configurable": {"session_id": session_id}}):
+        history_list[-1][1] += chunk.content
+        yield history_list
 
 import asyncio
 

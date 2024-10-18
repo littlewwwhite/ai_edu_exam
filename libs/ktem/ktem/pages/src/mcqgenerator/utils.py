@@ -46,9 +46,7 @@ def read_file(file):
 def get_table_data(quiz_str):
     try:
         #convert the quiz from string to dict
-        print(quiz_str)
         quiz_str_list=re.findall(r'```json([^`]+?)```', quiz_str)
-        print(quiz_str_list)
         if quiz_str_list:
             quiz_str=quiz_str_list[0]
         quiz_dict=json.loads(quiz_str)

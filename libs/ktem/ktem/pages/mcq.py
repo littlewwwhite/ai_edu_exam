@@ -1,5 +1,5 @@
 import random
-
+import os
 import gradio as gr
 from langchain_community.callbacks import get_openai_callback
 from typing import List, Dict
@@ -23,9 +23,11 @@ class GradioMCQPage:
         self.show_review_md = None  # 添加一个新的 Markdown 组件来显示 review
         self.quiz_data = {}
         self.mistake_book_quiz = []
+        self.information=[]
         self.edit_mode = False
         self.TYPE = ["多项选择题", "单项选择题", "对错题"]
         self.level=["简单","适中","困难","创新"]
+        self.count=0
 
 
     def ui(self):
@@ -103,8 +105,8 @@ class GradioMCQPage:
             # 设置刷新按钮的回调
             self.refresh_btn.click(
                 fn=self.refresh_mistake_tab,
-                inputs=[self.question_type],
-                outputs=[item for sublist in self.mistake_question_block for item in sublist]  # 展开所有问题和选择的组件
+                inputs=[self.question_type, self._app.user_id],
+                outputs=[self.score_display_]+[item for sublist in self.mistake_question_block for item in sublist]  # 展开所有问题和选择的组件
             )
 
             self.generate_btn.click(
@@ -144,23 +146,31 @@ class GradioMCQPage:
             # )
             self.submit_btn.click(
                 fn=self.evaluate_answers,
-                inputs=[self.question_type, tab1_identifier] + [opt[1] for opt in self.question_block],
+                inputs=[self.question_type, tab1_identifier, self._app.user_id] + [opt[1] for opt in self.question_block],
                 outputs=self.score_display
             )
             self.submit_btn_.click(
                 fn=self.evaluate_answers,
-                inputs=[self.question_type, tab2_identifier] + [opt[1] for opt in self.question_block],
-                outputs=self.score_display
+                inputs=[self.question_type, tab2_identifier, self._app.user_id] + [opt[1] for opt in self.mistake_question_block],
+                outputs=self.score_display_
             )
             self.text_input_chat.submit(
+                self.add_msg,
+                [self.text_input_chat, self.chatbot],
+                [self.text_input_chat, self.chatbot],
+                queue=False).then(
                 fn=self.get_response,
-                inputs=[self.text_input, self._app.user_id],
-                outputs=[self.chatbot, self.text_input]
+                inputs=[self.chatbot, self._app.user_id],
+                outputs=[self.chatbot]
             )
             self.submit_btn_chat.click(
+                self.add_msg,
+                [self.text_input_chat, self.chatbot],
+                [self.text_input_chat, self.chatbot],
+                queue=False).then(
                 fn=self.get_response,
-                inputs=[self.text_input, self._app.user_id],
-                outputs=[self.chatbot, self.text_input]
+                inputs=[self.chatbot, self._app.user_id],
+                outputs=[self.chatbot]
             )
     async def generate_mcqs(self, file, text, mcq_count, subject, tone, question_type):
         try:
@@ -292,7 +302,7 @@ class GradioMCQPage:
         checkbox_buttons = gr.CheckboxGroup(choices=[], visible=False)
         return question_text, radio_buttons, checkbox_buttons
 
-    def evaluate_answers(self, question_type,study_or_review, *answers):
+    def evaluate_answers(self, question_type,study_or_review,User_id, *answers):
         correct_count = 0
         mistake_book = {"mcq": {}, "other": {}}  # 错题集
         result_details = []  # 用于存储所有题目的结果详情
@@ -304,11 +314,11 @@ class GradioMCQPage:
         # 适应学习界面和温习界面的提交按钮事件
         quiz = self.quiz_data if study_or_review == "study" else self.mistake_book_quiz[
             mistake_book_mapping.get(question_type, 1)]
-        print(quiz)
+        quiz_keys=list(quiz.keys())
         # 如果你有更多的 question_type 需要处理，可以在 mistake_book_mapping 中添加更多条目
         # 读取现有的错题集
         try:
-            with open(mistake_book_dir, 'r', encoding='utf-8') as M_file:
+            with open(os.path.join(mistake_book_dir, f"Mistake_Book_{User_id}.json"), 'r', encoding='utf-8') as M_file:
                 MISTAKE_JSON = json.load(M_file)
         except (FileNotFoundError, json.JSONDecodeError):
             MISTAKE_JSON = {"mcq": {}, "other": {}}
@@ -321,7 +331,7 @@ class GradioMCQPage:
             if answer is None:
                 break
 
-            question = quiz[str(idx + 1)]
+            question = quiz[quiz_keys[idx]]
             correct = question["correct"].replace('，', ',').split(",")
             correct_options = [option.strip().upper() for option in correct if option.strip()]
 
@@ -347,7 +357,7 @@ class GradioMCQPage:
             # 生成题目结果详情
             color = "green" if is_correct else "red"
             result_details.append(f'<div style="color: {color};">')
-            result_details.append(f"问题 {idx + 1}：{question['question']}")
+            result_details.append(f"问题 {idx+1}：{question['question']}")
             result_details.append(f"你的答案：{answer}")
             result_details.append(f"正确答案：{question['correct']}")
             if not is_correct:
@@ -368,9 +378,11 @@ class GradioMCQPage:
         if study_or_review == "study":
 
             # 将更新后的错题集写回文件
-            with open(mistake_book_dir, 'w', encoding='utf-8') as M_file:
+            with open(os.path.join(mistake_book_dir, f"Mistake_Book_{User_id}.json"), 'w', encoding='utf-8') as M_file:
                 json.dump(MISTAKE_JSON, M_file, ensure_ascii=False, indent=4)
 
+        if len(quiz)==0:
+            return gr.update(value="当前没有题目，不可提交", visible=True)
         # 生成结果报告
         result = f"<h3>你的得分是: {correct_count} / {len(quiz)}</h3>\n\n"
         result += "\n".join(result_details)
@@ -378,17 +390,17 @@ class GradioMCQPage:
         if correct_count / len(quiz) !=1 and study_or_review == "study":
             result += "<p>已加入错题集。</p>"
 
-        return result
+        return gr.update(value=result, visible=True)
 
-    def refresh_mistake_tab(self, question_type):
-        forgotten_questions = self.get_random_questions()
+    def refresh_mistake_tab(self, question_type,User_id):
+        forgotten_questions = self.get_random_questions(User_id)
         if question_type == "多项选择题":
             return self.question_show_tab(question_type, forgotten_questions[0])
-        return self.question_show_tab(question_type, forgotten_questions[1])
+        return [gr.update(visible=False)]+self.question_show_tab(question_type, forgotten_questions[1])
 
-    def get_random_questions(self, num_mcq=5, num_other=5):
+    def get_random_questions(self,User_id, num_mcq=5, num_other=5):
         try:
-            with open(mistake_book_dir, 'r', encoding='utf-8') as M_file:
+            with open(os.path.join(mistake_book_dir, f"Mistake_Book_{User_id}.json"), 'r', encoding='utf-8') as M_file:
                 mistake_book = json.load(M_file)
         except (FileNotFoundError, json.JSONDecodeError):
             mistake_book = {"mcq": {}, "other": {}}
@@ -441,20 +453,12 @@ class GradioMCQPage:
         return question_updates
 
 
-    def get_response(self, user_input, session_id="1"):
-        information=self.get_random_questions(3,3)
-        information=json.dumps(information[0], ensure_ascii=False) + " " +json.dumps(information[1], ensure_ascii=False)
-        print(information)
-        response_message, history=generate_response(user_input,information, session_id)
-        print(response_message,history)
-        # 初始化空的 chunks 变量来累积响应
-        chunks = ""
-        # 提取响应内容
-        content = response_message.content  # 直接访问内容
-        for chunk in content:
-            chunks += chunk
-            # 返回完整的对话历史和当前累积的响应
-            chat_history = [(message.content, None) if isinstance(message, HumanMessage) else (None, message.content)
-                            for message in history.messages]
-            yield chat_history, ""
+    def get_response(self, history_list,User_id):
+        if self.count % 20==0:
+            self.information=self.get_random_questions(User_id,10,10)
+            self.information=json.dumps(self.information[0], ensure_ascii=False) + " " +json.dumps(self.information[1], ensure_ascii=False)
+        for response_message in generate_response(history_list, self.information, User_id):
+            yield response_message
 
+    def add_msg(self,user_message, history):
+        return "", history + [[user_message, None]]

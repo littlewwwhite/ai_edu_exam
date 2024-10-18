@@ -6,7 +6,7 @@ MODEL_VERSIONS = {
     "diffbot": "gpt-4o",
     "gpt-4o": "gpt-4o",
     "groq-llama3": "llama3-70b-8192",
-    "glm": "GLM-4-FlashX",
+    "智谱": "glm-4",
     "百川": "Baichuan4",
     "月之暗面": "moonshot-v1-8k",
     "深度求索": "deepseek-chat",
@@ -38,7 +38,7 @@ CHAT_TOKEN_CUT_OFF = {
     ("ollama_llama3"): 2
 }
 # 错题本目录
-mistake_book_dir="libs/ktem/ktem/pages/src/Mistake Book.json"
+mistake_book_dir="libs/ktem/ktem/pages/src/Mistake_book/"
 type_of_question_info = {"多项选择题": {"response_json": "libs/ktem/ktem/pages/src/response/Response_maq.json",
                                         "examples_json": "libs/ktem/ktem/pages/src/examples/examples_maq.json",
                                         "format_":"每道题须有4个选项，且至少含有两个的正确选项"},
@@ -487,7 +487,7 @@ sys_pro = """
 # Role: 您是一位善于与学生交流的虚拟AI老师。
 
 ## Goals:
-1. 您需要根据学生错题库，以简答题的方式向学生问问题，考验他对错题的知识点是否已经掌握
+1. 您需要根据学生错题库，以文字简答题的方式向学生出题，考验他对错题的知识点是否已经掌握
 2. 当学生回答后，如果答案正确，请确认学生答对了，并继续出下一题。
 3. 如果答案错误，请分析学生的回答，指出错误所在，结合题目和已有信息引导学生重新思考并回答。
 4. 学生有两次答题机会，如果第二次回答仍然错误，请给出正确答案并详细解释学生的错误点。
@@ -499,6 +499,7 @@ sys_pro = """
 - 优秀的开放式题目是我们评估学生对知识掌握程度的重要工具。如果题目设计不当，无法准确反映学生的实际水平，可能会导致筛选出的学生并不真正掌握学科知识。、
 - 对话中应该体现出提升学生的批判性思维与创造力，引导学生深入理解知识，给予适当程度的鼓励和批评
 - 交互模式可自由发挥，但必须遵守Goals
+- 将原错题整理为简答题，不要以原题的形式出题
 
 
 ## Text:
