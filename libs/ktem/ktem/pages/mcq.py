@@ -37,10 +37,10 @@ class GradioMCQPage:
                 with gr.Row():
                     with gr.Column(scale=1):
                         self.file_upload = gr.File(label="上传 PDF、RTF 或 TXT 文件（临时），长期文档请上传至FIle")
-                        self.text_input = gr.Textbox(label="或在此输入文本", lines=5, value="神经网络的发展历程")
+                        self.text_input = gr.Textbox(label="或在此输入文本你想要生成试卷的相关信息", lines=5, value="")
                         with gr.Row():
                             self.mcq_count = gr.Slider(minimum=3, maximum=10, value=3, step=1, label="生成题目数量")
-                            self.subject = gr.Textbox(label="科目", value="填写学科名称")
+                            self.subject = gr.Textbox(label="科目名称（可模糊）", value="")
                         with gr.Row():
                             self.tone = gr.Dropdown(choices=self.level, label="题目复杂度", value="适中")
                             self.question_type = gr.Dropdown(choices=self.TYPE, label="题目类型", value="单项选择题")

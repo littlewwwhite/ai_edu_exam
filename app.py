@@ -13,6 +13,8 @@ if GRADIO_TEMP_DIR is None:
     os.environ["GRADIO_TEMP_DIR"] = GRADIO_TEMP_DIR
 
 from ktem.main import App  # noqa
+
+print("成功")
 app = App()
 demo = app.make()
 demo.queue().launch(
