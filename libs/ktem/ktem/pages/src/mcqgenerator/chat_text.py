@@ -17,14 +17,13 @@ custom_css = """
 }
 """
 
-
 class GradioMCQPage:
     def __init__(self):
         self.quiz_data = {}
         self.user_answers = {}
         self.TYPE = ["多项选择题", "单项选择题", "对错题", "填空题"]
         self.information = """
-         "31": {
+         "1": {
             "question": "下列哪个选项最准确地描述了前馈神经网络的特点？",
             "options": {
                 "A": "从前隐藏层到输出层的路径中允许存在循环连接。",
@@ -35,7 +34,7 @@ class GradioMCQPage:
             "correct": "C",
             "explanation": "前馈神经网络的信息只沿着一个方向从前隐藏层到输出层进行传递，没有反馈回路或循环结构。选项A描述了具有循环连接的神经网络（如RNN），B则是对循环神经网络特点的描述，而D则适用于卷积神经网络的特点。"
         },
-        "32": {
+        "2": {
             "question": "关于反向传播算法在训练神经网络中的作用，以下哪个说法是正确的？",
             "options": {
                 "A": "该算法通过随机选取权重来加速神经网络的学习过程。",
@@ -46,7 +45,7 @@ class GradioMCQPage:
             "correct": "C",
             "explanation": "反向传播算法的核心作用是通过计算损失关于每个参数的梯度来更新神经网络的权重，目标是最小化预测输出与实际标签之间的差距（即损失函数）。选项A、B和D分别描述了不准确或无关的做法。"
         },
-        "33": {
+        "3": {
             "question": "卷积神经网络广泛应用于图像识别任务的主要原因是什么？",
             "options": {
                 "A": "因为它们能够捕捉到序列数据的时间依赖关系。",
@@ -57,7 +56,7 @@ class GradioMCQPage:
             "correct": "B",
             "explanation": "卷积神经网络（CNN）特别适合图像识别，主要得益于其局部感受野和参数共享的特性，这有助于模型捕捉到输入信号中空间结构信息，并且保持对平移变换的不变性。选项A描述了RNN的特点；C、D则不准确地反映了训练或架构设计的原则。"
         },
-        "34": {
+        "4": {
             "question": "注意力机制允许模型在处理序列数据时只关注输入中的关键部分。",
             "options": {
                 "A": "True",
@@ -66,7 +65,7 @@ class GradioMCQPage:
             "correct": "A",
             "explanation": "注意力机制通过赋予不同位置不同的权重，使得模型能够更加聚焦于重要的信息。"
         },
-        "35": {
+        "5": {
             "question": "自注意力机制只允许序列中的每个元素关注其前一个元素。",
             "options": {
                 "A": "True",
@@ -75,7 +74,7 @@ class GradioMCQPage:
             "correct": "B",
             "explanation": "自注意力机制让序列中每一个位置都可以从其他所有位置获取信息，而不只是前一个。这一特性使得模型能够学习到更复杂的依赖关系。"
         },
-        "36": {
+        "6": {
             "question": "计算查询向量和键值对之间的相似性是得出注意力权重的过程。",
             "options": {
                 "A": "True",
@@ -84,7 +83,7 @@ class GradioMCQPage:
             "correct": "A",
             "explanation": "在注意力机制中，通过点积或加权求和等方式比较查询与键的相似性来确定注意力权重。"
         },
-        "37": {
+        "7": {
             "question": "自注意力机制只允许序列中的每个元素关注其前一个元素。",
             "options": {
                 "A": "True",
@@ -93,7 +92,7 @@ class GradioMCQPage:
             "correct": "B",
             "explanation": "自注意力机制让序列中每一个位置都可以从其他所有位置获取信息，而不只是前一个。这一特性使得模型能够学习到更复杂的依赖关系。"
         },
-        "38": {
+        "8": {
             "question": "计算查询向量和键值对之间的相似性是得出注意力权重的过程。",
             "options": {
                 "A": "True",
@@ -102,7 +101,7 @@ class GradioMCQPage:
             "correct": "A",
             "explanation": "在注意力机制中，通过点积或加权求和等方式比较查询与键的相似性来确定注意力权重。"
         },
-        "39": {
+        "9": {
             "question": "科学研究成果应当在公布前严格保密。",
             "options": {
                 "A": "True",
@@ -111,7 +110,7 @@ class GradioMCQPage:
             "correct": "A",
             "explanation": "科学研究中的许多创新和发现，在正式发表之前需要保持严格的保密状态，以防止机密信息泄露或被竞争对手非法利用。"
         },
-        "40": {
+        "10": {
             "question": "科学保密仅适用于军事领域。",
             "options": {
                 "A": "True",
@@ -142,6 +141,12 @@ class GradioMCQPage:
         - 当学生回答后，如果答案正确，请确认学生答对了，并继续出下一题。
         - 学生有两次答题机会，如果第二次回答仍然错误，请给出正确答案并详细解释学生的错误点。
         - 当这一道题目结束后，紧接着给学生出第二道题，不要等学生主动要求出题
+
+        ## claim
+        - 每次仅提出一道问题考察学生
+        - 在提问中不要给出答案
+        - 学生回答完后要给出解析，再给出下一道题
+
          
 
         ## Text:
@@ -201,16 +206,17 @@ class GradioMCQPage:
 
             with gr.Tab("对话错题", visible=True) as chat_tab:
                 self.chatbot = gr.Chatbot(
-                    placeholder="根据错题集对话\n请你回答问题",
+                    placeholder="根据错题集对话\n请你回答问题,按下回车开始。",
                     show_label=False,
                     elem_id="main-chat-bot",
                     show_copy_button=True,
                     likeable=True,
                     bubble_full_width=False,
                 )
+
                 with gr.Row():
                     self.text_input = gr.Textbox(
-                        placeholder="Chat input",
+                        placeholder="输入你的答案",
                         scale=15,
                         container=False,
                         max_lines=10,
@@ -245,13 +251,14 @@ class GradioMCQPage:
                 )
 
 
-mcq_generator = GradioMCQPage()
-mcq_generator.ui()
-mcq_generator.mcq_interface.launch(
-    server_name="172.18.232.73",
-    server_port=7864,
-    share=True,
-    inbrowser=False,
-)
+
+# mcq_generator = GradioMCQPage()
+# mcq_generator.ui()
+# mcq_generator.mcq_interface.launch(
+#     server_name="172.18.232.73",
+#     server_port=7864,
+#     share=True,
+#     inbrowser=False,
+# )
 
 

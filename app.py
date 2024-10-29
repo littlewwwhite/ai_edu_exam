@@ -19,8 +19,8 @@ app = App()
 demo = app.make()
 demo.queue().launch(
     favicon_path=app._favicon,
-    server_name="172.18.232.73",
-    share=False,
+    server_name="0.0.0.0",
+    share=True,
     inbrowser=False,
     debug=True,
     allowed_paths=[

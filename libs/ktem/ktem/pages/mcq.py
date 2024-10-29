@@ -86,6 +86,8 @@ class GradioMCQPage:
                     show_copy_button=True,
                     likeable=True,
                     bubble_full_width=False,
+                    height=500,
+                    container=True,
                 )
                 with gr.Row():
                     self.text_input_chat = gr.Textbox(
