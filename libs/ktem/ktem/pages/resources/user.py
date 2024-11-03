@@ -175,8 +175,29 @@ class UserManagement(BasePage):
                 gr.Markdown(USERNAME_RULE)
                 gr.Markdown(PASSWORD_RULE)
             self.btn_new = gr.Button("Create user")
+            with gr.Row():
+                self.E_range1=gr.Number(label="实验组学生学号开始区间")
+                self.E_range2=gr.Number(label="实验组学生学号结束区间")
+            with gr.Row():
+                self.C_range1=gr.Number(label="对照组学生学号开始区间")
+                self.C_range2=gr.Number(label="对照组学生学号结束区间")
+            with gr.Row():
+                self.exp_file = gr.File(label="上传实验组学生信息XLS文件")
+                self.con_file = gr.File(label="上传对照组学生信息XLS文件")
+            self.btn_group = gr.Button("Create group")
 
     def on_register_events(self):
+        self.btn_group.click(
+            self.create_group_of_users,
+            inputs=[self.exp_file,self.con_file,
+                    self.E_range1, self.E_range2,
+                    self.C_range1, self.C_range2],
+            outputs=[self.usn_new, self.pwd_new, self.pwd_cnf_new],
+        ).then(
+            self.list_users,
+            inputs=self._app.user_id,
+            outputs=[self.state_user_list, self.user_list],
+        )
         self.btn_new.click(
             self.create_user,
             inputs=[self.usn_new, self.pwd_new, self.pwd_cnf_new],
@@ -280,6 +301,29 @@ class UserManagement(BasePage):
                 ],
             },
         )
+
+    def create_group_of_users(self,file_exp, file_con, start_range_1, end_range_1, start_range_2, end_range_2):
+        try:
+            if file_exp and file_con:
+                experiment_df = pd.read_excel(file_exp, engine='xlrd')['学号'].tolist()
+                control_df = pd.read_excel(file_con, engine='xlrd')['学号'].tolist()
+            else:
+                experiment_df = list(range(start_range_1, end_range_1 + 1))
+                control_df = list(range(start_range_2, end_range_2 + 1))
+            for i in experiment_df:
+                username = str(i).zfill(6)  # 假设学号至少为6位
+                username = "exp" + username
+                password = f"{username}pP="  # 实际应用中应使用更安全的密码策略
+                self.create_user(username, password, password)
+
+            for i in control_df:
+                username = str(i).zfill(6)  # 假设学号至少为6位
+                username = "con" + username
+                password = f"{username}pP="  # 实际应用中应使用更安全的密码策略
+                self.create_user(username, password, password)
+            return "", "", ""
+        except Exception as e:
+            return f"发生错误：{str(e)}"
 
     def create_user(self, usn, pwd, pwd_cnf):
         errors = validate_username(usn)

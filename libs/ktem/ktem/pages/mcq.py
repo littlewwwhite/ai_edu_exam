@@ -1,54 +1,100 @@
 import random
 import os
+import time
+
 import gradio as gr
 from langchain_community.callbacks import get_openai_callback
 from typing import List, Dict
 import json
 import asyncio
+from ktem.app import BasePage
 
 from ktem.pages.src.mcqgenerator.utils import read_file,get_table_data
 from ktem.pages.src.mcqgenerator.MCQGenerator import generate_evaluate_chain
 from ktem.pages.src.mcqgenerator.RAG import RAG,generate_response
-from ktem.pages.src.mcqgenerator.constants import type_of_question_info,mistake_book_dir,sys_pro
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.chat_history import InMemoryChatMessageHistory
-from langchain_core.messages import HumanMessage
-from langchain_core.runnables import RunnableWithMessageHistory
+from ktem.pages.src.mcqgenerator.constants import type_of_question_info,mistake_book_dir,sys_pro,user_study_time
 
 
-class GradioMCQPage:
+custom_js = """
+<script>
+let lastX = null;
+let lastY = null;
+let mouseMoved = false;
+
+document.addEventListener("mousemove", function(event) {
+    lastX = event.pageX;
+    lastY = event.pageY;
+    mouseMoved = true; // 标记鼠标已移动
+});
+
+function checkMousePosition() {
+    if (mouseMoved) {
+        const x = lastX;
+        const y = lastY;
+
+        // 更新文本框内容
+        document.getElementById("mouse-coordinates").value = `X: ${x}, Y: ${y}`;
+        console.log(`Mouse moved to X: ${x}, Y: ${y}`);
+
+        // 触发Gradio接口调用
+        document.getElementById("update-coordinates").click();
+
+        mouseMoved = false; // 重置标记
+    } else {
+        console.log("No mouse movement detected.");
+    }
+}
+
+// 每2秒检查一次鼠标位置
+setInterval(checkMousePosition, 2000);
+
+// 初始检查
+checkMousePosition();
+</script>
+"""
+
+class GradioMCQPage(BasePage):
     def __init__(self, app):
         self._app = app
         self.review = ""  # 初始化 review 为空字符串
-        self.show_review_md = None  # 添加一个新的 Markdown 组件来显示 review
-        self.quiz_data = {}
-        self.mistake_book_quiz = []
-        self.information=[]
-        self.edit_mode = False
+        # self.show_review_md = None  # 添加一个新的 Markdown 组件来显示 review
+        # self.quiz_data = {}
+        # self.mistake_book_quiz = []
+        # self.information=[]
+        # self.edit_mode = False
         self.TYPE = ["多项选择题", "单项选择题", "对错题"]
         self.level=["简单","适中","困难","创新"]
-        self.count=0
+        # self.state_data=None
+        # self.flag=False # 是否初始化了state_data
+        self.on_building_ui()
 
 
-    def ui(self):
+    def on_building_ui(self):
         with gr.Blocks() as self.mcq_interface:
             gr.Markdown("# Learn&Exam")
+            # self.review = gr.State("")  # 初始化 review 为空字符串
+            self.quiz_data = gr.State({})  # 存储题目数据
+            self.mistake_book_quiz = gr.State([])  # 错题本
+            self.information = gr.State([])  # 信息列表
+            self.state_data = gr.State({})  # 状态数据
+            self.count = gr.State(0)
             with gr.Tab("题目生成"):
                 with gr.Row():
                     with gr.Column(scale=1):
-                        self.file_upload = gr.File(label="上传 PDF、RTF 或 TXT 文件（临时），长期文档请上传至FIle")
-                        self.text_input = gr.Textbox(label="或在此输入文本你想要生成试卷的相关信息", lines=5, value="")
+                        # self.file_upload = gr.File(label="上传 PDF、RTF 或 TXT 文件（临时），长期文档请上传至FIle")
+                        self.text_input = gr.Textbox(label="或在此输入想要测验的主题，（如：神经网络的架构，内容不超过2000字）", lines=5, value="深度学习基础")
                         with gr.Row():
                             self.mcq_count = gr.Slider(minimum=3, maximum=10, value=3, step=1, label="生成题目数量")
-                            self.subject = gr.Textbox(label="科目名称（可模糊）", value="")
+                            self.subject = gr.Textbox(label="科目（如：深度学习）", value="深度学习")
                         with gr.Row():
                             self.tone = gr.Dropdown(choices=self.level, label="题目复杂度", value="适中")
                             self.question_type = gr.Dropdown(choices=self.TYPE, label="题目类型", value="单项选择题")
                         # 移除了不需要的选项
                         self.generate_btn = gr.Button("生成题目")
-                        # self.start_study_btn = gr.Button("开始学习")
+                        self.generating = gr.Markdown('<div style="text-align: center;"> </div>', visible=True)
+                        self.study_time_display = gr.Markdown("已登录", visible=True)
 
-                    with gr.Column(scale=2):
+                    with gr.Column(scale=2, visible= False) as self.admin_:
                         # 单独定义一个 Markdown 区域用于显示
                         self.output_area_md = gr.Markdown("生成的题目将显示在这里", visible=True)
                         # 编辑模式下的 Textbox 列表，初始隐藏
@@ -63,17 +109,17 @@ class GradioMCQPage:
                         with self.show_review:
                             self.show_review_md = gr.Markdown(self.review, visible=True)
 
-            with gr.Tab("学习界面", visible=False) as study_tab:
+            with gr.Tab("学习界面", visible=False) as self.study_tab:
                 self.question_block = [self.create_question_block(i) for i in range(20)]
                 self.submit_btn = gr.Button("提交答案")
                 self.score_display = gr.Markdown("")
-                tab1_identifier = gr.Textbox(value="study", visible=False)
+                self.tab1_identifier = gr.Textbox(value="study", visible=False)
 
             with gr.Tab("错题温习", visible=True) as mistake_tab:
                 self.mistake_question_block = [self.create_question_block(i) for i in range(30)]
                 self.submit_btn_ = gr.Button("提交答案")
                 self.score_display_ = gr.Markdown("")
-                tab2_identifier = gr.Textbox(value="review", visible=False)
+                self.tab2_identifier = gr.Textbox(value="review", visible=False)
 
                 # 添加刷新错题温习界面的按钮
                 self.refresh_btn = gr.Button("刷新错题")
@@ -104,92 +150,116 @@ class GradioMCQPage:
                         elem_classes=["cap-button-height"],
                     )
 
-            # 设置刷新按钮的回调
-            self.refresh_btn.click(
-                fn=self.refresh_mistake_tab,
-                inputs=[self.question_type, self._app.user_id],
-                outputs=[self.score_display_]+[item for sublist in self.mistake_question_block for item in sublist]  # 展开所有问题和选择的组件
-            )
+            self.mouse_x = gr.Textbox(label="Mouse Coordinates", elem_id="mouse-coordinates", visible=False)
 
-            self.generate_btn.click(
-                fn=self.generate_mcqs,
-                inputs=[
-                    self.file_upload,
-                    self.text_input,
-                    self.mcq_count,
-                    self.subject,
-                    self.tone,
-                    self.question_type
-                ],
-                outputs=[self.output_area_md, self.show_review_md, study_tab] + [item for sublist in self.question_block for item
-                                                                      in sublist] # 添加 题目、评论和做题显示
-            )
+            # 隐藏按钮用于触发后端更新
+            self.update_button = gr.Button("Update", visible=False, elem_id="update-coordinates")
 
-            self.edit_mode_checkbox.change(
-                fn=self.toggle_edit_mode,
-                inputs=[self.edit_mode_checkbox],
-                outputs=[self.output_area_md] + self.edit_textboxes
-            )
+            # 当按钮被点击时，调用后端处理函数
 
-            success_message = gr.HTML()
-            self.save_btn.click(
-                fn=self.save_quiz_data,
-                inputs=self.edit_textboxes,
-                outputs=success_message
-            )
-            self.export_btn.click(
-                fn=self.export_quiz,
-                outputs=gr.File(visible=False)
-            )
-            # self.start_study_btn.click(
-            #     fn=lambda: gr.update(visible=True),
-            #     inputs=None,
-            #     outputs=study_tab
-            # )
-            self.submit_btn.click(
-                fn=self.evaluate_answers,
-                inputs=[self.question_type, tab1_identifier, self._app.user_id] + [opt[1] for opt in self.question_block],
-                outputs=self.score_display
-            )
-            self.submit_btn_.click(
-                fn=self.evaluate_answers,
-                inputs=[self.question_type, tab2_identifier, self._app.user_id] + [opt[1] for opt in self.mistake_question_block],
-                outputs=self.score_display_
-            )
-            self.text_input_chat.submit(
-                self.add_msg,
-                [self.text_input_chat, self.chatbot],
-                [self.text_input_chat, self.chatbot],
-                queue=False).then(
-                fn=self.get_response,
-                inputs=[self.chatbot, self._app.user_id],
-                outputs=[self.chatbot]
-            )
-            self.submit_btn_chat.click(
-                self.add_msg,
-                [self.text_input_chat, self.chatbot],
-                [self.text_input_chat, self.chatbot],
-                queue=False).then(
-                fn=self.get_response,
-                inputs=[self.chatbot, self._app.user_id],
-                outputs=[self.chatbot]
-            )
-    async def generate_mcqs(self, file, text, mcq_count, subject, tone, question_type):
+
+    def on_register_events(self):
+        """事件处理器"""
+        self.update_button.click(fn=self.handle_mouse_coordinates,
+                                 inputs=[self._app.user_id, self.state_data],
+                                 outputs=[self.study_time_display])
+
+        # 设置刷新按钮的回调
+        self.refresh_btn.click(
+            fn=self.refresh_mistake_tab,
+            inputs=[self.question_type, self._app.user_id],
+            outputs=[self.score_display_, self.mistake_book_quiz] + [item for sublist in self.mistake_question_block for item in sublist]
+            # 展开所有问题和选择的组件
+        )
+
+        self.generate_btn.click(
+            fn=self.generate_mcqs,
+            inputs=[
+                # self.file_upload,
+                self.text_input,
+                self.mcq_count,
+                self.subject,
+                self.tone,
+                self.question_type,
+                self._app.user_id
+            ],
+            outputs=[self.output_area_md, self.show_review_md, self.study_tab, self.quiz_data, self.generating] + [item for sublist in self.question_block for item in sublist]  # 添加 题目、评论和做题显示
+            ,concurrency_limit=200,
+            queue=False
+        )
+
+        self.edit_mode_checkbox.change(
+            fn=self.toggle_edit_mode,
+            inputs=[self.edit_mode_checkbox, self.quiz_data],
+            outputs=[self.output_area_md] + self.edit_textboxes
+        )
+
+        success_message = gr.HTML()
+        self.save_btn.click(
+            fn=self.save_quiz_data,
+            inputs=[self.quiz_data]+self.edit_textboxes,
+            outputs=success_message
+        )
+        self.export_btn.click(
+            fn=self.export_quiz,
+            inputs=[self.quiz_data],
+            outputs=gr.File(visible=False)
+        )
+        # self.start_study_btn.click(
+        #     fn=lambda: gr.update(visible=True),
+        #     inputs=None,
+        #     outputs=study_tab
+        # )
+        self.submit_btn.click(
+            fn=self.evaluate_answers,
+            inputs=[self.mistake_book_quiz, self.quiz_data, self.question_type, self.tab1_identifier, self._app.user_id] + [opt[1] for opt in self.question_block],
+            outputs=self.score_display
+        )
+        self.submit_btn_.click(
+            fn=self.evaluate_answers,
+            inputs=[self.mistake_book_quiz, self.quiz_data, self.question_type, self.tab2_identifier, self._app.user_id] + [opt[1] for opt in
+                                                                               self.mistake_question_block],
+            outputs=self.score_display_
+        )
+        self.text_input_chat.submit(
+            self.add_msg,
+            [self.text_input_chat, self.chatbot],
+            [self.text_input_chat, self.chatbot],
+            ).then(
+            fn=self.get_response,
+            inputs=[self.count, self.information, self.chatbot, self._app.user_id],
+            outputs=[self.chatbot,self.count],concurrency_limit=30,
+
+        )
+        self.submit_btn_chat.click(
+            self.add_msg,
+            [self.text_input_chat, self.chatbot],
+            [self.text_input_chat, self.chatbot],
+            ).then(
+            fn=self.get_response,
+            inputs=[self.count, self.information, self.chatbot, self._app.user_id],
+            outputs=[self.chatbot,self.count],concurrency_limit=30,
+        )
+    def generate_mcqs(self, file, text, mcq_count, subject, tone, question_type, user_id): #  async
         try:
             if file:
                 text = read_file(file)
             elif not text:
                 return "请上传文件或输入文本。"
 
-            # 调用 RAG 函数时，移除了多余的参数
-            result = await RAG(question=text, )
-
-            if result["message"] in [
-                "I couldn't find any relevant documents to answer your question.",
-                "Something went wrong"
-            ]:
-                result = {"message": text}
-
+            # # 调用 RAG 函数时，移除了多余的参数
+            # result = await RAG(question=text, )
+            #
+            # if result["message"] in [
+            #     "I couldn't find any relevant documents to answer your question.",
+            #     "Something went wrong"
+            # ]:
+            #     result = {"message": text}
+            if len(text) > 2000: # 取中间部分
+                start_index = (len(text) - 2000) // 2
+                end_index = start_index + 2000
+                text = text[start_index:end_index]
+            result = {"message": text}
             format_ = type_of_question_info[question_type]["format_"]
             examples_json = type_of_question_info[question_type]["examples_json"]
             response_json = type_of_question_info[question_type]["response_json"]
@@ -209,16 +279,21 @@ class GradioMCQPage:
                     "type_": question_type,
                     "format_": format_
                 })
-            self.review = response["review"]
-            self.quiz_data = response.get("quiz", {})
-            self.quiz_data = get_table_data(self.quiz_data)
-            print(self.quiz_data)
+            review = ""
+            if user_id == 1:
+                review = response.get("review", "")
+            quiz_data = response.get("quiz", {})
+            quiz_data = get_table_data(quiz_data)
             print(f"Total Tokens:{cb.total_tokens}")
             print(f"Prompt Tokens:{cb.prompt_tokens}")
             print(f"Completion Tokens:{cb.completion_tokens}")
             print(f"Total Cost:{cb.total_cost}")
-            question_updates = self.question_show_tab(question_type, self.quiz_data)
-            return [self.format_quiz_for_display(self.quiz_data), gr.update(value=self.review), gr.update(visible=True)] + question_updates
+            question_updates = self.question_show_tab(question_type, quiz_data)
+            return [self.format_quiz_for_display(quiz_data),
+                    gr.update(value=review),
+                    gr.update(visible=True),
+                    quiz_data,
+                    gr.update(value='<div style="text-align: center;">生成成功！！！</div>', visible=True)] + question_updates
 
         except Exception as e:
             print(f"Total Tokens:{cb.total_tokens}")
@@ -227,7 +302,7 @@ class GradioMCQPage:
             print(f"Total Cost:{cb.total_cost}")
             return f"发生错误：{str(e)}"
 
-    def toggle_edit_mode(self, edit_mode):
+    def toggle_edit_mode(self, edit_mode, quiz_data):
         if edit_mode:
             formatted_text = self.format_quiz_for_edit()
             updates = [gr.update(visible=False)]  # 隐藏 Markdown
@@ -237,7 +312,7 @@ class GradioMCQPage:
                 updates.append(gr.update(visible=False))
         else:
             # 返回到 Markdown 显示模式
-            updates = [gr.update(visible=True, value=self.format_quiz_for_display(self.quiz_data))]
+            updates = [gr.update(visible=True, value=self.format_quiz_for_display(quiz_data))]
             updates += [gr.update(visible=False) for _ in self.edit_textboxes]
         return updates
 
@@ -251,9 +326,9 @@ class GradioMCQPage:
             formatted_output += f"解释：{question['explanation']}\n\n"
         return formatted_output
 
-    def format_quiz_for_edit(self):
+    def format_quiz_for_edit(self, quiz_data):
         output = []
-        for idx, (_, question) in enumerate(self.quiz_data.items(), start=1):
+        for idx, (_, question) in enumerate(quiz_data.items(), start=1):
             output.append(f"问题 {idx}：{question['question']}")
             for opt, text in question['options'].items():
                 output.append(f"{opt}：{text}")
@@ -261,11 +336,11 @@ class GradioMCQPage:
             output.append(f"解释：{question['explanation']}")
         return output
 
-    def save_quiz_data(self, *inputs):
+    def save_quiz_data(self, quiz_data, *inputs):
         edit_textbox_index = 0  # 用于遍历 self.edit_textboxes 的索引
 
-        # 遍历 self.quiz_data 中的每一道题目
-        for question_id, question_data in self.quiz_data.items():
+        # 遍历 quiz_data 中的每一道题目
+        for question_id, question_data in quiz_data.items():
             # 更新问题文本
             question_data["question"] = inputs[edit_textbox_index].split('：', 1)[1]
             edit_textbox_index += 1
@@ -287,13 +362,13 @@ class GradioMCQPage:
         # return gr.update(value="修改已保存")
 
         with open("quiz_results.json", "w", encoding="utf-8") as f:
-            json.dump(self.quiz_data, f, ensure_ascii=False, indent=4)
+            json.dump(quiz_data, f, ensure_ascii=False, indent=4)
         return "<p style='color: green;'>结果已保存</p>"
 
-    def export_quiz(self):
+    def export_quiz(self, quiz_data):
         # 将测验数据保存到文件
         with open("quiz_results.json", "w", encoding="utf-8") as f:
-            json.dump(self.quiz_data, f, ensure_ascii=False, indent=4)
+            json.dump(quiz_data, f, ensure_ascii=False, indent=4)
 
         # 返回文件对象
         return gr.File(value="quiz_results.json", visible=True)
@@ -304,7 +379,7 @@ class GradioMCQPage:
         checkbox_buttons = gr.CheckboxGroup(choices=[], visible=False)
         return question_text, radio_buttons, checkbox_buttons
 
-    def evaluate_answers(self, question_type,study_or_review,User_id, *answers):
+    def evaluate_answers(self, mistake_book_quiz, quiz_data, question_type,study_or_review,User_id, *answers):
         correct_count = 0
         mistake_book = {"mcq": {}, "other": {}}  # 错题集
         result_details = []  # 用于存储所有题目的结果详情
@@ -314,7 +389,7 @@ class GradioMCQPage:
         }
 
         # 适应学习界面和温习界面的提交按钮事件
-        quiz = self.quiz_data if study_or_review == "study" else self.mistake_book_quiz[
+        quiz = quiz_data if study_or_review == "study" else mistake_book_quiz[
             mistake_book_mapping.get(question_type, 1)]
         quiz_keys=list(quiz.keys())
         # 如果你有更多的 question_type 需要处理，可以在 mistake_book_mapping 中添加更多条目
@@ -394,11 +469,11 @@ class GradioMCQPage:
 
         return gr.update(value=result, visible=True)
 
-    def refresh_mistake_tab(self, question_type,User_id):
+    def refresh_mistake_tab(self,question_type,User_id):
         forgotten_questions = self.get_random_questions(User_id)
         if question_type == "多项选择题":
-            return self.question_show_tab(question_type, forgotten_questions[0])
-        return [gr.update(visible=False)]+self.question_show_tab(question_type, forgotten_questions[1])
+            return [gr.update(visible=False)]+self.question_show_tab(question_type, forgotten_questions[0])+ [gr.update(value=[forgotten_questions[0],forgotten_questions[1]])]
+        return [gr.update(visible=False) , [forgotten_questions[0],forgotten_questions[1]]]+self.question_show_tab(question_type, forgotten_questions[1])
 
     def get_random_questions(self,User_id, num_mcq=5, num_other=5):
         try:
@@ -424,7 +499,6 @@ class GradioMCQPage:
         selected_other_keys = random.sample(other_keys, num_other)
         for key in selected_other_keys:
             selected_other[key] = mistake_book["other"][key]
-        self.mistake_book_quiz = [selected_mcq, selected_other]
 
         return selected_mcq, selected_other
 
@@ -455,12 +529,73 @@ class GradioMCQPage:
         return question_updates
 
 
-    def get_response(self, history_list,User_id):
-        if self.count % 20==0:
-            self.information=self.get_random_questions(User_id,10,10)
-            self.information=json.dumps(self.information[0], ensure_ascii=False) + " " +json.dumps(self.information[1], ensure_ascii=False)
-        for response_message in generate_response(history_list, self.information, User_id):
-            yield response_message
+    def get_response(self,count, information, history_list,User_id):
+        if count % 20==0:
+            print("count:",count)
+            information=self.get_random_questions(User_id,10,10)
+            print("information:",information)
+            information=json.dumps(information[0], ensure_ascii=False) + " " +json.dumps(information[1], ensure_ascii=False)
+        for response_message in generate_response(history_list, information, User_id):
+            yield response_message, count+1
 
     def add_msg(self,user_message, history):
         return "", history + [[user_message, None]]
+
+    def init(self, user_id):
+        file_path = os.path.join(user_study_time, f"total_time_{user_id}.json")
+
+        # 尝试读取文件中的 total_active_time
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as S_file:
+                data = json.load(S_file)
+                total_active_time = data.get("total_active_time", 0.0)
+        else:
+            total_active_time = 0.0
+
+        # 初始化状态数据
+        state_data={
+            "user_id": user_id,
+            "last_activity_time": time.time(),
+            "is_active": False,
+            "total_active_time": total_active_time
+        }
+        # print("用户的数据为：",state_data)
+        return [state_data, gr.update(visible=True if user_id == 1 else False)]
+
+
+    def handle_mouse_coordinates(self, user_id, state_data):
+        # print("鼠标检测触发成功！")
+        if state_data != {}:
+            current_time = time.time()
+            if time.time() - state_data["last_activity_time"] > 660:
+                # 非活动状态，初始化数据
+                # print("# 非活动状态，初始化数据")
+                state_data["is_active"]=False
+                state_data["last_activity_time"]=current_time
+            else:
+                # 已开始活动或者还在活动
+                if state_data["is_active"]:
+                    # print("活动")
+                    state_data["total_active_time"] += (current_time - state_data["last_activity_time"])
+                    state_data["last_activity_time"] = current_time
+                else:
+                    # print("已开始活动")
+                    state_data["last_activity_time"] = current_time
+                    state_data["is_active"]=True
+                with open(os.path.join("libs/ktem/ktem/pages/src/study_time", f"total_time_{user_id}.json"), 'w',
+                          encoding='utf-8') as S_file:
+                    json.dump({"total_active_time":state_data["total_active_time"]}, S_file, ensure_ascii=False, indent=4)
+            return f"您的学习总时长为：{int(state_data['total_active_time'])//60}分钟"
+        return "您还未登录！"
+
+    def on_subscribe_public_events(self):
+        if self._app.f_user_management:
+            self._app.subscribe_event(
+                name="onSignIn",
+                definition={
+                    "fn": self.init,
+                    "inputs": [self._app.user_id],
+                    "outputs": [self.state_data, self.admin_],
+                    "show_progress": "hidden",
+                },
+            )

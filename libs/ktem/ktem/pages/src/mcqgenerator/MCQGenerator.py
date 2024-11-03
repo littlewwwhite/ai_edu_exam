@@ -15,7 +15,7 @@ from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.chains import SequentialChain
-from ktem.pages.src.mcqgenerator.prompt import template, template2
+from ktem.pages.src.mcqgenerator.prompt import template, template2, template3
 
 # load_dotenv()  # take environment variables from .env.
 # KEY=os.getenv("my-openkey")
@@ -25,7 +25,7 @@ llm = ChatOpenAI(openai_api_key=os.environ.get('DEEPSEEK_API_KEY'),
                  base_url=os.environ.get('DEEPSEEK_API_URL'),
                  model="deepseek-chat",
                  top_p=0.7,
-                 temperature=0.5)
+                 temperature=0.98)
 # model=os.environ.get('default_model')
 # llm, _ = get_llm(model)
 # template="""
@@ -41,7 +41,7 @@ llm = ChatOpenAI(openai_api_key=os.environ.get('DEEPSEEK_API_KEY'),
 
 quiz_generation_prompt = PromptTemplate(
     input_variables=["text", "number", "subject", "tone", "response_json", "examples", "type_", "format_"],
-    template=template
+    template=template3
     )
 
 quiz_chain=LLMChain(llm=llm, prompt=quiz_generation_prompt, output_key="quiz", verbose=True)
@@ -57,15 +57,20 @@ quiz_chain=LLMChain(llm=llm, prompt=quiz_generation_prompt, output_key="quiz", v
 # Check from an expert English Writer of the above quiz:
 # """
 
+# quiz_evaluation_prompt=PromptTemplate(input_variables=["subject", "quiz", "type_", "tone", "format_"], template=template2)
+#
+# review_chain=LLMChain(llm=llm, prompt=quiz_evaluation_prompt, output_key="review", verbose=True)
+#
+# generate_evaluate_chain=SequentialChain(chains=[quiz_chain, review_chain], input_variables=["text", "number", "subject", "tone", "response_json", "examples", "type_", "format_"],
+#                                         output_variables=["quiz", "review"], verbose=True)
+
+
 quiz_evaluation_prompt=PromptTemplate(input_variables=["subject", "quiz", "type_", "tone", "format_"], template=template2)
 
 review_chain=LLMChain(llm=llm, prompt=quiz_evaluation_prompt, output_key="review", verbose=True)
 
-generate_evaluate_chain=SequentialChain(chains=[quiz_chain, review_chain], input_variables=["text", "number", "subject", "tone", "response_json", "examples", "type_", "format_"],
-                                        output_variables=["quiz", "review"], verbose=True)
-
-
-
+generate_evaluate_chain=SequentialChain(chains=[quiz_chain], input_variables=["text", "number", "subject", "tone", "response_json", "examples", "type_", "format_"],
+                                        output_variables=["quiz"], verbose=True)
 
 
 

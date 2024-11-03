@@ -1,4 +1,6 @@
 import random
+import threading
+import time
 
 import gradio as gr
 from langchain_community.callbacks import get_openai_callback
@@ -13,16 +15,27 @@ from ktem.pages.src.mcqgenerator.constants import type_of_question_info
 
 
 class GradioMCQPage:
-    def __init__(self):
+    def __init__(self, app):
+        self._app = app
         self.review = ""  # 初始化 review 为空字符串
         self.show_review_md = None  # 添加一个新的 Markdown 组件来显示 review
         self.quiz_data = {}
         self.edit_mode = False
         self.TYPE = ["多项选择题", "单项选择题", "对错题", "填空题"]
+        self.state_data = {
+            "user_id":self._app.user_id,
+            "start_time": None,
+            "last_activity_time": None,
+            "active_time": 0,
+            "total_active_time": 0
+        }
+        self.mouce_position=None
 
     def ui(self):
         with gr.Blocks() as self.mcq_interface:
             gr.Markdown("# MCQ Generator")
+            self.mouce_x = gr.Textbox(label="Mouse Coordinates",
+                                      elem_id="mouse-coordinates", visible=True, interactive=True)
             with gr.Tab("题目生成"):
                 with gr.Row():
                     with gr.Column(scale=1):
@@ -111,6 +124,8 @@ class GradioMCQPage:
                 inputs=[self.question_type] + [opt[1] for opt in self.question_block],
                 outputs=self.score_display
             )
+            # 启动后台线程定期发送活动时间
+            threading.Thread(target=self.periodic_send, daemon=True).start()
 
     async def generate_mcqs(self, file, text, mcq_count, subject, tone, question_type):
         try:
@@ -377,6 +392,33 @@ class GradioMCQPage:
             question_updates.extend([gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)])
 
         return question_updates
+
+    def update_activity_time(self, isActive=True):
+        current_time = time.time()
+        state = self.state_data
+
+        if state["start_time"] is None:
+            state["start_time"] = current_time
+
+        state["last_activity_time"] = current_time
+        state["active_time"] = current_time - state["start_time"]
+
+        if isActive:
+            state["total_active_time"] += state["active_time"]
+            state["start_time"] = current_time
+            state["active_time"] = 0
+
+        print(f"Total active time: {state['total_active_time']} seconds")
+        return state
+    def periodic_send(self):
+        while True:
+            state = self.state_data
+            if self.mouce_x != self.mouce_position and time.time()-state["last_activity_time"] > 300:
+                is_activate = False
+                self.state_data[""]
+            if state["last_activity_time"] and time.time() - state["last_activity_time"] > 300:  # 5分钟
+                self.update_activity_time(False)
+            time.sleep(30)
 
 mcq_generator = GradioMCQPage()
 mcq_generator.ui()

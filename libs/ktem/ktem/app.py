@@ -38,7 +38,7 @@ class BaseApp:
         self.dev_mode = getattr(settings, "KH_MODE", "") == "dev"
         self.app_name = getattr(settings, "KH_APP_NAME", "KGQuizMaster")
         self.app_version = getattr(settings, "KH_APP_VERSION", "")
-        self.f_user_management = getattr(settings, "KH_FEATURE_USER_MANAGEMENT", False)
+        self.f_user_management = getattr(settings, "KH_FEATURE_USER_MANAGEMENT", False)# 是否开启用户管理
         self._theme = KotaemonTheme()
 
         dir_assets = Path(__file__).parent / "assets"
@@ -168,11 +168,52 @@ class BaseApp:
         """Called when the app is created"""
 
     def make(self):
-        external_js = (
-            "<script type='module' "
-            "src='https://cdn.skypack.dev/pdfjs-viewer-element'>"
-            "</script>"
-        )
+        # 外部 JavaScript 文件
+        external_js = """
+        <script type='module' src='https://cdn.skypack.dev/pdfjs-viewer-element'></script>
+        """
+
+        # 自定义 JavaScript 代码
+        custom_js = """
+        <script>
+        let lastX = null;
+        let lastY = null;
+        let mouseMoved = false;
+
+        document.addEventListener("mousemove", function(event) {
+            lastX = event.pageX;
+            lastY = event.pageY;
+            mouseMoved = true; // 标记鼠标已移动
+        });
+
+        function checkMousePosition() {
+            if (mouseMoved) {
+                const x = lastX;
+                const y = lastY;
+
+                // 更新文本框内容
+                document.getElementById("mouse-coordinates").value = `X: ${x}, Y: ${y}`;
+                console.log(`Mouse moved to X: ${x}, Y: ${y}`);
+
+                // 触发Gradio接口调用
+                document.getElementById("update-coordinates").click();
+
+                mouseMoved = false; // 重置标记
+            } else {
+                console.log("No mouse movement detected.");
+            }
+        }
+
+        // 每10分钟检查一次鼠标位置
+        setInterval(checkMousePosition, 600000);
+
+        // 初始检查
+        checkMousePosition();
+        </script>
+        """
+
+        # 整合外部 JavaScript 文件和自定义 JavaScript 代码
+        combined_js = external_js + custom_js
 
         with gr.Blocks(
             theme=self._theme,
@@ -180,7 +221,7 @@ class BaseApp:
             title=self.app_name,
             analytics_enabled=False,
             js=self._js,
-            head=external_js,
+            head=combined_js,
         ) as demo:
             self.app = demo
             self.settings_state.render()

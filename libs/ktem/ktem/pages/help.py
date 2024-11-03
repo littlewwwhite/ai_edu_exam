@@ -32,7 +32,7 @@ class HelpPage:
         self,
         app,
         doc_dir: str = settings.KH_DOC_DIR,
-        remote_content_url: str = "https://raw.githubusercontent.com/Cinnamon/kotaemon",
+        remote_content_url: str = "",
         app_version: str | None = settings.KH_APP_VERSION,
         changelogs_cache_dir: str
         | Path = (Path(settings.KH_APP_DATA_DIR) / "changelogs"),
@@ -54,7 +54,7 @@ class HelpPage:
                 f"{self.remote_content_url}/v{self.app_version}/docs/about.md"
             )
         if about_md:
-            with gr.Accordion("About"):
+            with gr.Accordion("About", visible=False):
                 if self.app_version:
                     about_md = f"Version: {self.app_version}\n\n{about_md}"
                 gr.Markdown(about_md)
@@ -80,7 +80,7 @@ class HelpPage:
                     changelogs = fi.read()
             else:
                 release_url_base = (
-                    "https://api.github.com/repos/Cinnamon/kotaemon/releases"
+                    ""
                 )
                 changelogs = download_changelogs(
                     release_url=f"{release_url_base}/tags/v{self.app_version}"

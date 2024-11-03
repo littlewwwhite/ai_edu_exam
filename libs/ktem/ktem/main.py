@@ -1,12 +1,15 @@
+import threading
+import time
+
 import gradio as gr
 from decouple import config
 from ktem.app import BaseApp
 from ktem.pages.chat import ChatPage
+from ktem.pages.mcq import GradioMCQPage as MCQPage
 from ktem.pages.help import HelpPage
 from ktem.pages.resources import ResourcesTab
 from ktem.pages.settings import SettingsPage
 from ktem.pages.setup import SetupPage
-from ktem.pages.mcq import GradioMCQPage
 from theflow.settings import settings as flowsettings
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
@@ -59,16 +62,15 @@ class App(BaseApp):
                 visible=not self.f_user_management,
             ) as self._tabs["chat-tab"]:
                 self.chat_page = ChatPage(self)
-                # self.chat_page.ui()
 
             with gr.Tab(
                 "Exam",
-                elem_id="mcq-tab",
-                id="mcq-tab",
+                elem_id="mcq-generator-tab",
+                id="mcq-generator-tab",
                 visible=not self.f_user_management,
-            ) as self._tabs["mcq-tab"]:
-                self.mcq_page = GradioMCQPage(self)
-                self.mcq_page.ui()
+                elem_classes=["fill-main-area-height", "scrollable"],
+            ) as self._tabs["mcq-generator-tab"]:
+                self.mcq = MCQPage(self)
 
             if len(self.index_manager.indices) == 1:
                 for index in self.index_manager.indices:
@@ -85,7 +87,6 @@ class App(BaseApp):
                     ) as self._tabs[f"{index.id}-tab"]:
                         page = index.get_index_page_ui()
                         setattr(self, f"_index_{index.id}", page)
-
             elif len(self.index_manager.indices) > 1:
                 with gr.Tab(
                     "Files",
@@ -110,7 +111,6 @@ class App(BaseApp):
                 elem_classes=["fill-main-area-height", "scrollable"],
             ) as self._tabs["resources-tab"]:
                 self.resources_page = ResourcesTab(self)
-                # self.resources_page.ui()
 
             with gr.Tab(
                 "Settings",
@@ -120,7 +120,7 @@ class App(BaseApp):
                 elem_classes=["fill-main-area-height", "scrollable"],
             ) as self._tabs["settings-tab"]:
                 self.settings_page = SettingsPage(self)
-                # self.settings_page.ui()
+
             with gr.Tab(
                 "Help",
                 elem_id="help-tab",
@@ -129,13 +129,13 @@ class App(BaseApp):
                 elem_classes=["fill-main-area-height", "scrollable"],
             ) as self._tabs["help-tab"]:
                 self.help_page = HelpPage(self)
-                # self.help_page.ui()
 
         if KH_ENABLE_FIRST_SETUP:
             with gr.Column(visible=False) as self.setup_page_wrapper:
                 self.setup_page = SetupPage(self)
-                # self.setup_page.ui()
+
     def on_subscribe_public_events(self):
+        """设置可见性"""
         if self.f_user_management:
             from ktem.db.engine import engine
             from ktem.db.models import User
@@ -172,6 +172,10 @@ class App(BaseApp):
                         tabs_update.append(gr.update(visible=False))
                     elif k == "resources-tab":
                         tabs_update.append(gr.update(visible=is_admin))
+                    elif k == "indices-tab":
+                        tabs_update.append(gr.update(visible=is_admin))                    
+                    elif k == "mcq-generator-tab":
+                        tabs_update.append(gr.update(visible=False if user.username_lower[0] == "con" else True))
                     else:
                         tabs_update.append(gr.update(visible=True))
 

@@ -17,7 +17,7 @@ from ktem.main import App  # noqa
 print("成功")
 app = App()
 demo = app.make()
-demo.queue().launch(
+demo.queue(default_concurrency_limit=4).launch(
     favicon_path=app._favicon,
     server_name="0.0.0.0",
     share=True,
@@ -28,4 +28,3 @@ demo.queue().launch(
         GRADIO_TEMP_DIR,
     ]
 )
-

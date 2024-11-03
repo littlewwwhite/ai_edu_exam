@@ -39,6 +39,8 @@ CHAT_TOKEN_CUT_OFF = {
 }
 # 错题本目录
 mistake_book_dir="libs/ktem/ktem/pages/src/Mistake_book/"
+user_study_time="libs/ktem/ktem/pages/src/study_time"
+
 type_of_question_info = {"多项选择题": {"response_json": "libs/ktem/ktem/pages/src/response/Response_maq.json",
                                         "examples_json": "libs/ktem/ktem/pages/src/examples/examples_maq.json",
                                         "format_":"每道题须有4个选项，且至少含有两个的正确选项"},

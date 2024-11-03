@@ -1,157 +1,47 @@
-## 1. Add your AI models
+KGQuizMaster 使用手册
 
-![resources tab](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/resources-tab.png)
+主要分为两部分功能，chat和exam, chat为问答功能，exam为生成题目自测功能。
 
-- The tool uses Large Language Model (LLMs) to perform various tasks in a QA pipeline.
-  So, you need to provide the application with access to the LLMs you want
-  to use.
-- You only need to provide at least one. However, tt is recommended that you include all the LLMs
-  that you have access to, you will be able to switch between them while using the
-  application.
+## 初始账号
 
-To add a model:
-
-1. Navigate to the `Resources` tab.
-2. Select the `LLMs` sub-tab.
-3. Select the `Add` sub-tab.
-4. Config the model to add:
-   - Give it a name.
-   - Pick a vendor/provider (e.g. `ChatOpenAI`).
-   - Provide the specifications.
-   - (Optional) Set the model as default.
-5. Click `Add` to add the model.
-6. Select `Embedding Models` sub-tab and repeat the step 3 to 5 to add an embedding model.
-
-<details markdown>
-
-<summary>(Optional) Configure model via the .env file</summary>
-
-Alternatively, you can configure the models via the `.env` file with the information needed to connect to the LLMs. This file is located in
-the folder of the application. If you don't see it, you can create one.
-
-Currently, the following providers are supported:
-
-### OpenAI
-
-In the `.env` file, set the `OPENAI_API_KEY` variable with your OpenAI API key in order
-to enable access to OpenAI's models. There are other variables that can be modified,
-please feel free to edit them to fit your case. Otherwise, the default parameter should
-work for most people.
-
-```shell
-OPENAI_API_BASE=https://api.openai.com/v1
-OPENAI_API_KEY=<your OpenAI API key here>
-OPENAI_CHAT_MODEL=gpt-3.5-turbo
-OPENAI_EMBEDDINGS_MODEL=text-embedding-ada-002
+```
+若为exp组，则为："exp" + "学号"，密码为 名字 + "pP="
+若为con组，则为："con" + "学号"，密码为 名字 + "pP="
 ```
 
-### Azure OpenAI
+## 1.  Chat 界面
 
-For OpenAI models via Azure platform, you need to provide your Azure endpoint and API
-key. Your might also need to provide your developments' name for the chat model and the
-embedding model depending on how you set up Azure development.
+在 Chat 模式中，KGQuizMaster 可以回答用户提出的问题，并根据上传的材料生成知识图谱和向量库，通过图检索和向量检索生成准确答案。
+![alt text](./images/chat.png)
 
-```shell
-AZURE_OPENAI_ENDPOINT=
-AZURE_OPENAI_API_KEY=
-OPENAI_API_VERSION=2024-02-15-preview # could be different for you
-AZURE_OPENAI_CHAT_DEPLOYMENT=gpt-35-turbo # change to your deployment name
-AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT=text-embedding-ada-002 # change to your deployment name
-```
+主要功能
 
-### Local models
+	1. 图谱问答
+	•	Collection：使用本地已向量化或知识图谱化的文件。
+	• 右侧会显示答案的来源和涉及到的相关实体内容和关系
+	2. 对话模式设置：支持多种推理模式，用户可根据问题的复杂程度选择以下推理方式：
+	•	Simple：直接回答。
+	•	Complex：将问题分解为子问题，逐一解答。
+	•	ReAct：适合逐步推理的问题。
+	•	ReWOO：引入“规划者”和“执行者”角色，分工合作解决问题。
+	3.	信息佐证：信息面板提供模型生成回答时的佐证信息，包括知识图谱、三元组数据和向量相似度检索的文本等，方便用户追踪答案来源。
 
-Pros:
+## 2.  Exam 界面
 
-- Privacy. Your documents will be stored and process locally.
-- Choices. There are a wide range of LLMs in terms of size, domain, language to choose
-  from.
-- Cost. It's free.
+KGQuizMaster 可以根据上传的教学材料生成相关练习题，帮助用户复习和巩固知识。
+![alt text](./images/exam.png)
 
-Cons:
 
-- Quality. Local models are much smaller and thus have lower generative quality than
-  paid APIs.
-- Speed. Local models are deployed using your machine so the processing speed is
-  limited by your hardware.
 
-#### Find and download a LLM
+主要功能
 
-You can search and download a LLM to be ran locally from the [Hugging Face
-Hub](https://huggingface.co/models). Currently, these model formats are supported:
+	1.	生成题目：支持上传多种格式的教学资料（如教科书、PDF文档、TXT文本），或直接输入主题。系统会基于材料生成包含知识点的练习题。
+	2.	题目定制：支持用户设置题目的数量、学科、复杂度和题型。系统根据用户设置智能生成匹配的题目，满足个性化需求。
+	3.	题目评估和编辑：每次生成题目后，系统会评估题目质量并提供修改建议，用户可根据反馈编辑题目和答案，实现个性化定制。
 
-- GGUF
 
-You should choose a model whose size is less than your device's memory and should leave
-about 2 GB. For example, if you have 16 GB of RAM in total, of which 12 GB is available,
-then you should choose a model that take up at most 10 GB of RAM. Bigger models tend to
-give better generation but also take more processing time.
+![alt text](./images/wenxi.png)
+	4.	错题重温：系统会自动记录用户的错题，并生成错题集。用户可重新练习错题并向系统提出疑问，系统会尝试解答。
+	5.	题目导出：支持用户将生成的题目导出为 JSON 文件，以便保存、整理或分享。
 
-Here are some recommendations and their size in memory:
-
-- [Qwen1.5-1.8B-Chat-GGUF](https://huggingface.co/Qwen/Qwen1.5-1.8B-Chat-GGUF/resolve/main/qwen1_5-1_8b-chat-q8_0.gguf?download=true):
-  around 2 GB
-
-#### Enable local models
-
-To add a local model to the model pool, set the `LOCAL_MODEL` variable in the `.env`
-file to the path of the model file.
-
-```shell
-LOCAL_MODEL=<full path to your model file>
-```
-
-Here is how to get the full path of your model file:
-
-- On Windows 11: right click the file and select `Copy as Path`.
-</details>
-
-## 2. Upload your documents
-
-![file index tab](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/file-index-tab.png)
-
-In order to do QA on your documents, you need to upload them to the application first.
-Navigate to the `File Index` tab and you will see 2 sections:
-
-1. File upload:
-   - Drag and drop your file to the UI or select it from your file system.
-     Then click `Upload and Index`.
-   - The application will take some time to process the file and show a message once it is done.
-2. File list:
-   - This section shows the list of files that have been uploaded to the application and allows users to delete them.
-
-## 3. Chat with your documents
-
-![chat tab](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/chat-tab.png)
-
-Now navigate back to the `Chat` tab. The chat tab is divided into 3 regions:
-
-1. Conversation Settings Panel
-   - Here you can select, create, rename, and delete conversations.
-     - By default, a new conversation is created automatically if no conversation is selected.
-   - Below that you have the file index, where you can choose whether to disable, select all files, or select which files to retrieve references from.
-     - If you choose "Disabled", no files will be considered as context during chat.
-     - If you choose "Search All", all files will be considered during chat.
-     - If you choose "Select", a dropdown will appear for you to select the
-       files to be considered during chat. If no files are selected, then no
-       files will be considered during chat.
-2. Chat Panel
-   - This is where you can chat with the chatbot.
-3. Information Panel
-
-![information panel](https://raw.githubusercontent.com/Cinnamon/kotaemon/develop/docs/images/info-panel-scores.png)
-
-- Supporting information such as the retrieved evidence and reference will be
-  displayed here.
-- Direct citation for the answer produced by the LLM is highlighted.
-- The confidence score of the answer and relevant scores of evidences are displayed to quickly assess the quality of the answer and retrieved content.
-
-- Meaning of the score displayed:
-  - **Answer confidence**: answer confidence level from the LLM model.
-  - **Relevance score**: overall relevant score between evidence and user question.
-  - **Vectorstore score**: relevant score from vector embedding similarity calculation (show `full-text search` if retrieved from full-text search DB).
-  - **LLM relevant score**: relevant score from LLM model (which judge relevancy between question and evidence using specific prompt).
-  - **Reranking score**: relevant score from Cohere [reranking model](https://cohere.com/rerank).
-
-Generally, the score quality is `LLM relevant score` > `Reranking score` > `Vectorscore`.
-By default, overall relevance score is taken directly from LLM relevant score. Evidences are sorted based on their overall relevance score and whether they have citation or not.
+KGQuizMaster 通过这些功能，为用户提供一站式的问答和学习体验，提升学习效果和效率。

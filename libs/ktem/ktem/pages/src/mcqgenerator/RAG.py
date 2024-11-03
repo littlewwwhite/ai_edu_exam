@@ -18,6 +18,9 @@ from langchain.retrievers.document_compressors import DocumentCompressorPipeline
 from langchain_text_splitters import TokenTextSplitter
 from langchain_core.messages import HumanMessage,AIMessage
 from langchain.chains import GraphCypherQAChain
+from langchain_community.callbacks import get_openai_callback
+
+
 from ktem.pages.src.mcqgenerator.llm import extract_graph_document,get_llm
 from langchain_community.graphs import Neo4jGraph
 from langchain_openai import OpenAIEmbeddings
@@ -403,34 +406,46 @@ def get_session_history(session_id: str) -> InMemoryChatMessageHistory:
         store[session_id] = InMemoryChatMessageHistory()
     return store[session_id]
 
-def generate_response(history_list, information, session_id="1",model="深度求索"):
+
+def generate_response(history_list, information, session_id="1", model="深度求索"):
     prompt = ChatPromptTemplate.from_messages([
         ("system", sys_pro),
         MessagesPlaceholder(variable_name="history"),
         ("human", "{question}"),
     ])
-    # model = os.environ.get('default_model')
+
+    # 获取模型
     llm, _ = get_llm(model)
-    # Set up the language model and memory chain
+
+    # 设置语言模型和 memory chain
     chain = prompt | llm
-    chain_with_message = RunnableWithMessageHistory(chain, get_session_history, input_messages_key="question",
-                                                         history_messages_key="history", )
+    chain_with_message = RunnableWithMessageHistory(chain, get_session_history,
+                                                    input_messages_key="question",
+                                                    history_messages_key="history")
+
     # 获取当前会话的历史记录
-    # history = get_session_history(session_id)
+    history = get_session_history(session_id)
+    print("多轮对话历史信息：", history,"session_id:",session_id)
 
-    # 生成响应
-    history_list[-1][1] = ""
-    # 提取响应内容
-    for chunk in chain_with_message.stream({"question": history_list[-1][0], "info": information},
-                                                config={"configurable": {"session_id": session_id}}):
-        history_list[-1][1] += chunk.content
-        yield history_list
+    # 初始化 token 追踪
+    with get_openai_callback() as cb:
+        # 开始生成响应
+        history_list[-1][1] = ""  # 初始化最后一轮对话的响应内容
 
-import asyncio
+        # 提取响应内容（流式输出）
+        for chunk in chain_with_message.stream({"question": history_list[-1][0], "info": information},
+                                               config={"configurable": {"session_id": session_id}}):
+            history_list[-1][1] += chunk.content  # 累积生成内容
+            yield history_list  # 实时返回对话历史
 
-# 假设 RAG 函数已经定义好了
+        # 生成结束，获取详细 token 信息
+        detailed_info = {
+            "prompt_tokens": cb.prompt_tokens,
+            "completion_tokens": cb.completion_tokens,
+            "total_tokens": cb.total_tokens
+        }
 
-if __name__ == "__main__":
-    # 使用 asyncio.run() 来调用并等待异步函数 RAG 完成
-    result = asyncio.run(RAG("神经网络的发展历程"))
-    print(result["message"][0].page_content)
+        # 打印或记录详细信息
+        print(f"Prompt tokens used: {detailed_info['prompt_tokens']}")
+        print(f"Completion tokens used: {detailed_info['completion_tokens']}")
+        print(f"Total tokens used: {detailed_info['total_tokens']}")

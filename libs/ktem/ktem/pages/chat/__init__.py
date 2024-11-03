@@ -146,9 +146,9 @@ class ChatPage(BasePage):
             with gr.Column(
                 scale=INFO_PANEL_SCALES[False], elem_id="chat-info-panel"
             ) as self.info_column:
-                with gr.Accordion(label="Information panel", open=True):
+                with gr.Accordion(label="Information panel", open=False):
                     self.modal = gr.HTML("<div id='pdf-modal'></div>")
-                    self.plot_panel = gr.Plot(visible=False)
+                    self.plot_panel = gr.Plot(visible=True)
                     self.info_panel = gr.HTML(elem_id="html-info-panel")
 
     def _json_to_plot(self, json_dict: dict | None):
