@@ -1,38 +1,79 @@
 # AI-EDU
-一个新的 ai 教育考试系统，基于 kotaemon 进行魔改的项目，主要新增功能为基于 agent 的题目生成和问答系统。
-![alt text](image-9.png)
 
-agent 原理
-![alt text](image-10.png)
+## 文档
+
+ 基于 kotaemon 改进的的智能教育考试系统
+
+[![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
+
+基于 kotaemon 的智能教育考试系统，集成了基于 AI Agent 的智能题目生成和个性化问答功能。
+
+## 特性亮点
+
+- 基于 AI Agent 的智能题目生成
+- 智能错题分析和个性化学习建议
+- 自适应学习路径规划
+- 基于历史错题的智能对话
+- 灵活的题目修改和优化建议
+
+## 系统架构
+
+### Agent 系统架构
+![技术架构](docs/images/KGQuizMaster_structure.png)
+
+### 错题分析系统
+![推理模式](docs/images/ReWOO.png)
+
+## 快速开始
+
+### 环境要求
+- Python 3.10+
+- Docker (可选)
+
+### 安装步骤
+
+1. 克隆仓库
+```bash
+git clone [repository-url]
+cd ai_edu_exam
+```
+
+2. 安装依赖
+```bash
+pip install -r doc_env_reqs.txt
+```
+
+3. 启动应用
+```bash
+python app.py
+```
 
 
-错题原理
-![alt text](image.png)
+## 使用指南
+
+### 考试场景
+![学习场景1](docs/images/learn1.png)
+![学习场景2](docs/images/learn2.png)
+
+### 题目生成
+![题目生成](docs/images/quiz_generate.png)
+
+### 题目修改
+![社区互动](docs/images/community.png)
+
+### 修改建议
+![问卷调查](docs/images/surveys.png)
 
 
-## Overview
+## 技术栈
+
+- 后端框架：kotaemon
+- AI 引擎：Large Language Models
+- 数据存储：JSON
+- 容器化：Docker
 
 
-## 使用场景
-![alt text](image-4.png)
+## 许可证
 
-![alt text](image-5.png)
-
-
-## 题目生成
-
-![alt text](image-6.png)
-
-
-### 题目可供修改
-
-![alt text](image-7.png)
-
-### 并具有修改意见
-![alt text](image-8.png)
-
-
-### 可根据历史错题记录进行对话
-![alt text](image-11.png)
-
-
+本项目采用 MIT 许可证 - 查看 [LICENSE.txt](LICENSE.txt) 了解详情
