@@ -1,5 +1,7 @@
 # AI-EDU
 
+https://github.com/user-attachments/assets/20b88f29-79d6-4524-94e4-06d211aece48
+
 ## 文档
 
  基于 kotaemon 改进的的智能教育考试系统
