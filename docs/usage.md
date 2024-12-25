@@ -12,7 +12,7 @@ KGQuizMaster 使用手册
 ## 1.  Chat 界面
 
 在 Chat 模式中，KGQuizMaster 可以回答用户提出的问题，并根据上传的材料生成知识图谱和向量库，通过图检索和向量检索生成准确答案。
-![alt text](./images/chat.png)
+![alt text](./images/learn1.png)
 
 主要功能
 
@@ -29,7 +29,7 @@ KGQuizMaster 使用手册
 ## 2.  Exam 界面
 
 KGQuizMaster 可以根据上传的教学材料生成相关练习题，帮助用户复习和巩固知识。
-![alt text](./images/exam.png)
+![alt text](./images/learn2.png)
 
 
 
@@ -40,7 +40,6 @@ KGQuizMaster 可以根据上传的教学材料生成相关练习题，帮助用�
 	3.	题目评估和编辑：每次生成题目后，系统会评估题目质量并提供修改建议，用户可根据反馈编辑题目和答案，实现个性化定制。
 
 
-![alt text](./images/wenxi.png)
 	4.	错题重温：系统会自动记录用户的错题，并生成错题集。用户可重新练习错题并向系统提出疑问，系统会尝试解答。
 	5.	题目导出：支持用户将生成的题目导出为 JSON 文件，以便保存、整理或分享。
 

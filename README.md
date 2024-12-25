@@ -22,9 +22,6 @@
 ### Agent 系统架构
 ![技术架构](docs/images/KGQuizMaster_structure.png)
 
-### 错题分析系统
-![推理模式](docs/images/ReWOO.png)
-
 ## 快速开始
 
 ### 环境要求
@@ -65,15 +62,12 @@ python app.py
 ### 修改建议
 ![问卷调查](docs/images/surveys.png)
 
+### 错题分析系统
+![推理模式](docs/images/ReWOO.png)
 
 ## 技术栈
 
-- 后端框架：kotaemon
-- AI 引擎：Large Language Models
-- 数据存储：JSON
+- 框架：kotaemon
+- AI 引擎：LLM, Embedding
+- 数据存储：JSON, Chroma
 - 容器化：Docker
-
-
-## 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE.txt](LICENSE.txt) 了解详情
